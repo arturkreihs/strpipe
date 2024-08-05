@@ -1,10 +1,10 @@
 use strpipe::Strpipe;
 
 fn main() {
-    let mut strpipe = Strpipe::new("named_pipe");
+    let mut strpipe = Strpipe::new("named_pipe").unwrap();
 
     loop {
         println!("reading");
-        strpipe.read(|line| println!("{line}"));
+        strpipe.read(|line| println!("{line}")).unwrap();
     }
 }
