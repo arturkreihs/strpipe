@@ -3,6 +3,7 @@ use nix::sys::stat;
 use nix::{fcntl, unistd};
 use thiserror::Error;
 
+#[derive(Debug)]
 pub struct Strpipe {
     path: String,
     fd: i32,
@@ -42,7 +43,8 @@ impl Strpipe {
         // executes that fn when data arrives
         let len = unistd::read(self.fd, &mut self.recv_buf)?;
         self.main_buf.extend(&self.recv_buf[..len]);
-        while let Some(idx) = self.main_buf.iter().position(|&i| i == b'\r' || i == b'\n') {
+        while let Some(idx) = self.main_buf.iter()
+            .position(|&i| i == b'\r' || i == b'\n') {
             if idx == 0 {
                 self.main_buf.drain(..1);
                 continue;
