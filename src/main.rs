@@ -1,7 +1,8 @@
+use std::path::Path;
 use strpipe::Strpipe;
 
 fn main() {
-    let mut strpipe = Strpipe::new("named_pipe").unwrap();
+    let mut strpipe = Strpipe::new(Path::new("test")).unwrap();
 
     loop {
         println!("reading");

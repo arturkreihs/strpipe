@@ -3,10 +3,11 @@ use nix::sys::stat;
 use nix::{fcntl, unistd};
 use thiserror::Error;
 use std::os::fd::OwnedFd;
+use std::path::Path;
 
 #[derive(Debug)]
-pub struct Strpipe {
-    path: String,
+pub struct Strpipe<'a> {
+    path: &'a Path,
     fd: OwnedFd,
     recv_buf: [u8; 512],
     main_buf: Vec<u8>,
@@ -21,8 +22,8 @@ pub enum StrpipeError {
     Nix(#[from] nix::errno::Errno),
 }
 
-impl Strpipe {
-    pub fn new(path: &str) -> Result<Self, StrpipeError> {
+impl<'a> Strpipe<'a> {
+    pub fn new(path: &'a Path) -> Result<Self, StrpipeError> {
         // if pipe doesn't exist then create it
         if stat::stat(path).is_err() {
             unistd::mkfifo(path, stat::Mode::S_IRWXU)?;
@@ -32,16 +33,16 @@ impl Strpipe {
         let fd = fcntl::open(path, OFlag::O_RDWR, stat::Mode::S_IRWXU)?;
 
         Ok(Strpipe {
-            path: path.to_owned(),
+            path,
             fd,
             recv_buf: [0u8; 512],
             main_buf: vec![],
         })
     }
 
+    // accepts fn which accepts &str
+    // executes that fn when data arrives
     pub fn read<F: Fn(&str)>(&mut self, callback: F) -> Result<(), StrpipeError> {
-        // accepts fn that accepts &str
-        // executes that fn when data arrives
         let len = unistd::read(&self.fd, &mut self.recv_buf)?;
         self.main_buf.extend(&self.recv_buf[..len]);
         while let Some(idx) = self.main_buf.iter()
@@ -63,10 +64,10 @@ impl Strpipe {
     }
 }
 
-impl Drop for Strpipe {
+impl Drop for Strpipe<'_> {
     fn drop(&mut self) {
         let fd = self.fd.try_clone().unwrap();
-        match (unistd::close(fd), unistd::unlink(self.path.as_str())) {
+        match (unistd::close(fd), unistd::unlink(self.path.as_os_str())) {
             (Err(_), _) => log::error!("closing"),
             (_, Err(_)) => log::error!("unlinking"),
             _ => (),
