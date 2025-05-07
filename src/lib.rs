@@ -41,8 +41,8 @@ impl<'a> Strpipe<'a> {
     }
 
     // accepts fn which accepts &str
-    // executes that fn when data arrives
-    pub fn read<F: Fn(&str)>(&mut self, callback: F) -> Result<(), StrpipeError> {
+    // calls that fn when data arrives
+    pub fn read<F: FnMut(&str)>(&mut self, mut callback: F) -> Result<(), StrpipeError> {
         let len = unistd::read(&self.fd, &mut self.recv_buf)?;
         self.main_buf.extend(&self.recv_buf[..len]);
         while let Some(idx) = self.main_buf.iter()
