@@ -2,11 +2,12 @@ use nix::fcntl::OFlag;
 use nix::sys::stat;
 use nix::{fcntl, unistd};
 use thiserror::Error;
+use std::os::fd::OwnedFd;
 
 #[derive(Debug)]
 pub struct Strpipe {
     path: String,
-    fd: i32,
+    fd: OwnedFd,
     recv_buf: [u8; 512],
     main_buf: Vec<u8>,
 }
@@ -41,7 +42,7 @@ impl Strpipe {
     pub fn read<F: Fn(&str)>(&mut self, callback: F) -> Result<(), StrpipeError> {
         // accepts fn that accepts &str
         // executes that fn when data arrives
-        let len = unistd::read(self.fd, &mut self.recv_buf)?;
+        let len = unistd::read(&self.fd, &mut self.recv_buf)?;
         self.main_buf.extend(&self.recv_buf[..len]);
         while let Some(idx) = self.main_buf.iter()
             .position(|&i| i == b'\r' || i == b'\n') {
@@ -64,7 +65,8 @@ impl Strpipe {
 
 impl Drop for Strpipe {
     fn drop(&mut self) {
-        match (unistd::close(self.fd), unistd::unlink(self.path.as_str())) {
+        let fd = self.fd.try_clone().unwrap();
+        match (unistd::close(fd), unistd::unlink(self.path.as_str())) {
             (Err(_), _) => log::error!("closing"),
             (_, Err(_)) => log::error!("unlinking"),
             _ => (),
