@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use nix::fcntl::OFlag;
 use nix::sys::stat;
 use nix::{fcntl, unistd};
@@ -42,7 +44,10 @@ impl<'a> Strpipe<'a> {
 
     // accepts fn which accepts &str
     // calls that fn when data arrives
-    pub fn read<F: FnMut(&str)>(&mut self, mut callback: F) -> Result<(), StrpipeError> {
+    pub async fn read<F>(&mut self, mut callback: F) -> Result<(), StrpipeError>
+        where
+            F: FnMut(&str) -> Box<dyn Future<Output = ()> + Unpin + '_>,
+        {
         let len = unistd::read(&self.fd, &mut self.recv_buf)?;
         self.main_buf.extend(&self.recv_buf[..len]);
         while let Some(idx) = self.main_buf.iter()
@@ -56,7 +61,7 @@ impl<'a> Strpipe<'a> {
                 if line.is_empty() {
                     break;
                 }
-                callback(line);
+                callback(line).await;
                 self.main_buf.drain(..=idx);
             }
         }
