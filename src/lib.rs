@@ -46,7 +46,7 @@ impl<'a> Strpipe<'a> {
     // calls that fn when data arrives
     pub async fn read<F>(&mut self, mut callback: F) -> Result<(), StrpipeError>
         where
-            F: FnMut(&str) -> Box<dyn Future<Output = ()> + Unpin + '_>,
+            F: FnMut(&str) -> Box<dyn Future<Output = ()> + Unpin + Send + '_>,
         {
         let len = unistd::read(&self.fd, &mut self.recv_buf)?;
         self.main_buf.extend(&self.recv_buf[..len]);
