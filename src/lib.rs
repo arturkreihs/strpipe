@@ -58,12 +58,11 @@ impl<'a> Strpipe<'a> {
             }
             if let Ok(line) = std::str::from_utf8(&self.main_buf[..idx]) {
                 let line = line.trim();
-                if line.is_empty() {
-                    break;
+                if !line.is_empty() {
+                    callback(line).await;
                 }
-                callback(line).await;
-                self.main_buf.drain(..=idx);
             }
+            self.main_buf.drain(..=idx);
         }
         Ok(())
     }
